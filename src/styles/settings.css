@@ -260,6 +260,12 @@
 }
 
 /* 🌟 预览视口主题与配色渲染规则 🌟 */
+.desktop-lyrics-preview-box[data-custom-color="true"] {
+  --theme-accent: var(--desktop-lyrics-active-color, #00f2fe);
+  --theme-glow: color-mix(in srgb, var(--theme-accent) 45%, transparent);
+  --unfilled-color: var(--desktop-lyrics-inactive-color, rgba(255, 255, 255, 0.45));
+}
+
 .desktop-lyrics-preview-box[data-theme="follow-app"] {
   --theme-accent: rgb(var(--dynamic-color, 0, 180, 216));
   --theme-glow: rgba(var(--dynamic-color, 0, 180, 216), 0.5);
@@ -302,7 +308,7 @@
 
 .desktop-lyrics-preview-main {
   color: var(--theme-accent, #00f2fe) !important;
-  filter: drop-shadow(0 2px 10px var(--theme-glow, rgba(0, 242, 254, 0.45)));
+  filter: drop-shadow(0 2px 10px var(--theme-glow, rgba(0, 242, 254, 0.45))) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.75));
 }
 
 .desktop-lyrics-preview-box[data-theme="aurora"] .desktop-lyrics-preview-main:not(:has(.lyrics-word)),
@@ -375,6 +381,22 @@
   align-items: center;
   justify-content: space-between;
   gap: 20px;
+  transition: max-height 0.3s ease, opacity 0.3s ease, transform 0.3s ease, padding 0.3s ease, margin 0.3s ease;
+  max-height: 120px;
+  opacity: 1;
+  transform: scaleY(1);
+  transform-origin: top;
+}
+.setting-row.hidden-row {
+  max-height: 0;
+  opacity: 0;
+  transform: scaleY(0.8);
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
 }
 @keyframes kimo-btn-spin {
   to { transform: rotate(360deg); }
@@ -1071,6 +1093,31 @@
 .desktop-lyrics-preview-box .lyrics-word.word-active {
   color: var(--theme-accent, #00f2fe) !important;
   -webkit-text-fill-color: var(--theme-accent, #00f2fe) !important;
+}
+
+.desktop-lyrics-preview-box[data-theme="aurora"] .lyrics-word.word-active,
+.desktop-lyrics-preview-box[data-theme="cyber"] .lyrics-word.word-active,
+.desktop-lyrics-preview-box[data-theme="sunset"] .lyrics-word.word-active,
+.desktop-lyrics-preview-box[data-theme="ocean"] .lyrics-word.word-active {
+  background-image: var(--theme-preset-gradient) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+
+.desktop-lyrics-preview-box[data-custom-color="true"] .lyrics-word.word-active {
+  background-image: none !important;
+  -webkit-text-fill-color: var(--theme-accent) !important;
+  color: var(--theme-accent) !important;
+}
+
+.desktop-lyrics-preview-box[data-custom-color="true"] .desktop-lyrics-preview-main:not(:has(.lyrics-word)) {
+  background: var(--theme-accent) !important;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  -webkit-text-fill-color: var(--theme-accent) !important;
+  color: var(--theme-accent) !important;
 }
 
 /* ── 浅色主题下预览文字可读性 ──

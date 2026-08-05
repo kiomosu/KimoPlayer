@@ -21,6 +21,25 @@ import { updateLyricsPreference } from '../lyrics/preferences.js';
 import { applyWindowMaterial, applyWindowOpacity } from '../ui/theme.js';
 import { pruneLyricsCache } from '../storage/lyrics-cache-db.js';
 
+function toggleSettingRow(row, show) {
+  if (!row) return;
+  if (show) {
+    if (row.style.display === 'none') {
+      row.classList.add('hidden-row');
+    }
+    row.style.display = 'flex';
+    row.offsetHeight;
+    row.classList.remove('hidden-row');
+  } else {
+    row.classList.add('hidden-row');
+    setTimeout(() => {
+      if (row.classList.contains('hidden-row')) {
+        row.style.display = 'none';
+      }
+    }, 300);
+  }
+}
+
 export const createSettingsPage = ({
   player,
   showToast,
@@ -730,10 +749,10 @@ export const createSettingsPage = ({
         </div>
       </div>
 
-      <div class="setting-row">
+      <div class="setting-row" id="settings-desktop-lyrics-theme-row" style="display: ${desktopLyricsCustomColor ? 'none' : 'flex'};">
         <div class="setting-info">
-          <div class="setting-label">配色预设与对齐</div>
-          <div class="setting-desc">选择桌面歌词主题配色与文字对齐方式。</div>
+          <div class="setting-label">配色预设</div>
+          <div class="setting-desc">选择桌面歌词内置主题配色。</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
           <select id="settings-desktop-lyrics-theme" class="setting-select">
@@ -744,6 +763,15 @@ export const createSettingsPage = ({
             <option value="ocean" ${desktopLyricsTheme === 'ocean' ? 'selected' : ''}>蔚蓝深海 (Ocean)</option>
             <option value="white" ${desktopLyricsTheme === 'white' ? 'selected' : ''}>经典亮白 (White)</option>
           </select>
+        </div>
+      </div>
+
+      <div class="setting-row" id="settings-desktop-lyrics-align-row" style="display: ${desktopLyricsLineMode === 'double' ? 'none' : 'flex'};">
+        <div class="setting-info">
+          <div class="setting-label">文字对齐</div>
+          <div class="setting-desc">选择桌面歌词的文字对齐方式（单行模式可用）。</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
           <select id="settings-desktop-lyrics-align" class="setting-select">
             <option value="center" ${desktopLyricsAlign === 'center' ? 'selected' : ''}>居中对齐</option>
             <option value="left" ${desktopLyricsAlign === 'left' ? 'selected' : ''}>靠左对齐</option>
@@ -1114,7 +1142,19 @@ export const createSettingsPage = ({
 
         // 历史更新公告数据
     const changelogData = [
-                  {
+      {
+        version: '1.8.2',
+        date: '2026.08.05',
+        type: '更新',
+        sections: [
+          { title: '✨ 优化与修复', items: [
+            '修复设置页预览框：补全缺失的预设特效阴影，并在选中渐变主题时可以正确显示高光填充。',
+            '设置页逻辑解耦：完全拆分原有的主题预设和文字对齐控制。在应用自定义颜色或开启双行模式时，将正确隐藏可能引起冲突的对应设置行。',
+            '设置页交互动效：重写了所有因状态变化而动态显示/隐藏的设置行，新增抽屉式弹性过渡动画，告别生硬闪烁。'
+          ] }
+        ],
+      },
+      {
         version: '1.8.1',
         date: '2026.08.05',
         type: '体验打磨',
@@ -1706,7 +1746,9 @@ export const createSettingsPage = ({
       localStorage.setItem('kimo-desktop-lyrics-line-mode', val);
       // 双行排列选项仅在双行模式显示
       const layoutRow = desktopLyricCard.querySelector('#settings-desktop-lyrics-layout-row');
-      if (layoutRow) layoutRow.style.display = val === 'double' ? 'flex' : 'none';
+      if (layoutRow) toggleSettingRow(layoutRow, val === 'double');
+      const alignRow = desktopLyricCard.querySelector('#settings-desktop-lyrics-align-row');
+      if (alignRow) toggleSettingRow(alignRow, val !== 'double');
       desktopLyrics?.updateStyle();
     });
 
@@ -1859,13 +1901,13 @@ export const createSettingsPage = ({
         applyBackgroundStyle(val);
         // 显示/隐藏旋转速率滑块、自定义背景设置区与背景遮罩滑块（按背景样式适配）
         const speedRow = themeCard.querySelector('#settings-bg-rotate-speed-row');
-        if (speedRow) speedRow.style.display = val === 'dynamic' ? 'flex' : 'none';
+        if (speedRow) toggleSettingRow(speedRow, val === 'dynamic');
         const overlayRow = themeCard.querySelector('#settings-overlay-opacity-row');
-        if (overlayRow) overlayRow.style.display = (val === 'static' || val === 'dynamic') ? 'flex' : 'none';
+        if (overlayRow) toggleSettingRow(overlayRow, val === 'static' || val === 'dynamic');
         const isCustom = val === 'custom';
         ['#settings-bg-custom-mask-row', '#settings-bg-custom-pick-row'].forEach(sel => {
           const row = themeCard.querySelector(sel);
-          if (row) row.style.display = isCustom ? 'flex' : 'none';
+          if (row) toggleSettingRow(row, isCustom);
         });
         const bgNames = { none: '关闭背景', static: '静态背景', dynamic: '动态背景', custom: '自定义背景' };
         showToast(`背景样式已切换至: ${bgNames[val] || val}`);
@@ -2304,8 +2346,13 @@ export const createSettingsPage = ({
       const activeColorVal = desktopLyricCard.querySelector('#settings-desktop-lyrics-color-active')?.value || '';
       const inactiveColorVal = desktopLyricCard.querySelector('#settings-desktop-lyrics-color-inactive')?.value || '';
       previewBox.setAttribute('data-custom-color', customColorEnabled ? 'true' : 'false');
-      if (activeColorVal) previewBox.style.setProperty('--desktop-lyrics-active-color', activeColorVal);
-      if (inactiveColorVal) previewBox.style.setProperty('--desktop-lyrics-inactive-color', inactiveColorVal);
+      if (customColorEnabled) {
+        if (activeColorVal) previewBox.style.setProperty('--theme-accent', activeColorVal);
+        if (inactiveColorVal) previewBox.style.setProperty('--unfilled-color', inactiveColorVal);
+      } else {
+        previewBox.style.removeProperty('--theme-accent');
+        previewBox.style.removeProperty('--unfilled-color');
+      }
 
       const targetFont = (fontSelectVal === 'custom' && storedFont.customPath)
         ? `'KimoDesktopLyricsPreviewCustom', system-ui, "Microsoft YaHei UI", sans-serif`
@@ -2474,7 +2521,11 @@ export const createSettingsPage = ({
     desktopLyricCard.querySelector('#settings-desktop-lyrics-custom-color')?.addEventListener('change', (e) => {
       localStorage.setItem('kimo-desktop-lyrics-custom-color', e.target.checked ? 'true' : 'false');
       const colorRow = desktopLyricCard.querySelector('#settings-desktop-lyrics-color-row');
-      if (colorRow) colorRow.style.display = e.target.checked ? 'flex' : 'none';
+      if (colorRow) toggleSettingRow(colorRow, e.target.checked);
+      const themeRow = desktopLyricCard.querySelector('#settings-desktop-lyrics-theme-row');
+      if (themeRow) {
+        toggleSettingRow(themeRow, !e.target.checked);
+      }
       desktopLyrics?.updateStyle();
       updateDesktopLyricsPreview();
       showToast(`自定义歌词颜色: ${e.target.checked ? '开启' : '关闭'}`);
@@ -2573,16 +2624,17 @@ export const createSettingsPage = ({
       localStorage.setItem('kimo-color-extraction', enabled ? 'on' : 'off');
       // 显示/隐藏取色模式行
       const modeRow = themeCard.querySelector('#settings-color-mode-row');
-      if (modeRow) modeRow.style.display = enabled ? 'flex' : 'none';
+      if (modeRow) toggleSettingRow(modeRow, enabled);
       // 隐藏手动模式下的深浅滑块行
-      if (!enabled) {
-        const intensityRow = themeCard.querySelector('#settings-color-intensity-row');
-        if (intensityRow) intensityRow.style.display = 'none';
-      } else {
-        // 恢复显示（取决于当前模式）
-        const currentMode = localStorage.getItem('kimo-color-mode') || 'smart';
-        const intensityRow = themeCard.querySelector('#settings-color-intensity-row');
-        if (intensityRow) intensityRow.style.display = currentMode === 'manual' ? 'flex' : 'none';
+      const intensityRow = themeCard.querySelector('#settings-color-intensity-row');
+      if (intensityRow) {
+        if (!enabled) {
+          toggleSettingRow(intensityRow, false);
+        } else {
+          // 恢复显示（取决于当前模式）
+          const currentMode = localStorage.getItem('kimo-color-mode') || 'smart';
+          toggleSettingRow(intensityRow, currentMode === 'manual');
+        }
       }
       reapplyCurrentColor();
       showToast(enabled ? '已开启专辑封面取色' : '已关闭专辑封面取色，使用默认主题色');
@@ -2598,7 +2650,7 @@ export const createSettingsPage = ({
         localStorage.setItem('kimo-color-mode', mode);
         // 显示/隐藏深浅滑块行
         const intensityRow = themeCard.querySelector('#settings-color-intensity-row');
-        if (intensityRow) intensityRow.style.display = mode === 'manual' ? 'flex' : 'none';
+        if (intensityRow) toggleSettingRow(intensityRow, mode === 'manual');
         reapplyCurrentColor();
         const modeNames = { smart: '智能取色', manual: '手动调节' };
         showToast(`取色模式已切换至: ${modeNames[mode] || mode}`);
