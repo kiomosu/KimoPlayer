@@ -620,13 +620,8 @@
   transition:
     color 0.45s ease,
     filter 0.32s ease,
-    transform 1.15s cubic-bezier(0.26, 1.12, 0.42, 1) var(--stagger-delay, 0s),
+    transform 1.15s cubic-bezier(0.2, 0, 0.2, 1) var(--stagger-delay, 0s),
     opacity 1.05s cubic-bezier(0.2, 0, 0.2, 1);
-  /* 图层按需提升：仅活跃/滚动中的行常驻合成层，避免整屏每行一层 */
-}
-
-.lyrics-line.active,
-.lyrics-line.is-scroll-target {
   will-change: transform, filter, opacity;
 }
 
@@ -694,21 +689,4 @@
 
 .lyrics-line.active .lyrics-word.is-background-word {
   opacity: 0.92;
-}
-
-/* Parallel vocal lines: when TTML has no explicit agent/role, keep
-   simultaneous lines visually separated without changing normal lyric rows.
-   Explicit role classes (role-l1/role-l2/role-both) remain authoritative. */
-.lyrics-line.concurrent-active.concurrent-lane-0:not(.role-l1):not(.role-l2):not(.role-both) {
-  align-self: flex-start;
-  text-align: left;
-  padding-left: 5%;
-  padding-right: 25%;
-}
-
-.lyrics-line.concurrent-active.concurrent-lane-1:not(.role-l1):not(.role-l2):not(.role-both) {
-  align-self: flex-end;
-  text-align: right;
-  padding-left: 25%;
-  padding-right: 5%;
 }

@@ -238,44 +238,6 @@ export function initializeLyricsPreferencesControls(player) {
     bindPopoverWheel(lyricAlignSlider, handleAlignWheel);
   }
 
-  const savedLiftAmp = parseFloat(localStorage.getItem('kimo-lyrics-lift-amplitude'));
-  let currentLiftAmp = Math.max(0, Math.min(5, Number.isFinite(savedLiftAmp) ? savedLiftAmp : 4.0));
-  const lyricLiftSlider = document.getElementById('slider-lyric-lift');
-  const lyricLiftValue = document.getElementById('lyric-lift-value');
-
-  const updateLiftLabel = (val) => {
-    if (!lyricLiftValue) return;
-    lyricLiftValue.innerText = `抬起: ${val.toFixed(1)}px`;
-    updateSliderFill(lyricLiftSlider);
-  };
-
-  if (lyricLiftSlider) {
-    lyricLiftSlider.value = currentLiftAmp;
-    updateLiftLabel(currentLiftAmp);
-
-    const applyLift = (val) => {
-      currentLiftAmp = Math.max(0, Math.min(5, val));
-      lyricLiftSlider.value = currentLiftAmp;
-      updateLiftLabel(currentLiftAmp);
-      updateLyricsPreference('liftAmplitude', currentLiftAmp);
-      syncLyricsToCurrentTime();
-    };
-
-    lyricLiftSlider.addEventListener('input', (e) => applyLift(parseFloat(e.target.value)));
-    lyricLiftSlider.addEventListener('change', (e) => applyLift(parseFloat(e.target.value)));
-
-    const handleLiftWheel = (e) => {
-      e.preventDefault();
-      const delta = e.deltaY < 0 ? 0.5 : -0.5;
-      const min = parseFloat(lyricLiftSlider.min) || 0.0;
-      const max = parseFloat(lyricLiftSlider.max) || 5.0;
-      const nextVal = Math.max(min, Math.min(max, currentLiftAmp + delta));
-      lyricLiftSlider.value = nextVal;
-      applyLift(nextVal);
-    };
-    bindPopoverWheel(lyricLiftSlider, handleLiftWheel);
-  }
-
   const staggerToggleBtn = document.getElementById('btn-stagger-toggle');
   if (staggerToggleBtn) {
     staggerToggleBtn.addEventListener('click', () => {
@@ -285,6 +247,46 @@ export function initializeLyricsPreferencesControls(player) {
       }
     });
   }
+
+  const compatibilityButton = document.getElementById('btn-lyrics-compatibility');
+  const compatibilityValue = document.getElementById('lyric-compatibility-value');
+  const compatibilityOptions = document.querySelectorAll('.lyrics-compatibility-option');
+  const compatibilityLabels = { auto: '自动', char: '强制逐字', line: '强制逐行' };
+  const validCompatibilityModes = Object.keys(compatibilityLabels);
+
+  const syncCompatibilityUI = (mode = localStorage.getItem('kimo-lyrics-compatibility-mode')) => {
+    const activeMode = validCompatibilityModes.includes(mode) ? mode : 'auto';
+    compatibilityOptions.forEach((option) => {
+      option.classList.toggle('is-active', option.dataset.value === activeMode);
+      option.setAttribute('aria-pressed', option.dataset.value === activeMode ? 'true' : 'false');
+    });
+    if (compatibilityValue) compatibilityValue.textContent = `兼容: ${compatibilityLabels[activeMode]}`;
+    if (compatibilityButton) compatibilityButton.title = `歌词时间兼容模式：${compatibilityLabels[activeMode]}`;
+  };
+
+  const applyCompatibilityMode = (mode) => {
+    if (!validCompatibilityModes.includes(mode)) return;
+    localStorage.setItem('kimo-lyrics-compatibility-mode', mode);
+    if (player.lyrics) {
+      player.lyrics.lyricsCompatibilityMode = mode;
+      player.lyrics.render();
+      if (player.lyrics.isVisible) {
+        player.lyrics.realign();
+        syncLyricsToCurrentTime();
+      }
+    }
+    syncCompatibilityUI(mode);
+    document.dispatchEvent(new CustomEvent('lyrics-compatibility-changed', { detail: { mode } }));
+  };
+
+  compatibilityOptions.forEach((option) => {
+    option.addEventListener('click', (event) => {
+      event.stopPropagation();
+      applyCompatibilityMode(option.dataset.value);
+    });
+  });
+  document.addEventListener('lyrics-compatibility-changed', (event) => syncCompatibilityUI(event.detail?.mode));
+  syncCompatibilityUI();
 
   document.getElementById('lyrics-back-btn')?.addEventListener('click', () => {
     player.lyrics.hide();

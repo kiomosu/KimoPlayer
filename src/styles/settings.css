@@ -350,17 +350,12 @@
   padding-bottom: 120px;
 }
 .settings-card {
-  background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--glass-border);
   border-radius: 16px;
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  backdrop-filter: blur(10px);
-}
-.app-container.theme-light .settings-card {
-  background: rgba(0, 0, 0, 0.01);
 }
 .settings-card-title {
   font-size: 16px;
@@ -416,6 +411,111 @@
   font-size: 11px;
   color: var(--text-secondary);
   max-width: 480px;
+}
+
+.shortcut-settings-card {
+  gap: 12px;
+}
+
+.shortcut-settings-card .settings-card-title {
+  margin-bottom: 0;
+}
+
+.shortcut-reset-all {
+  margin-left: auto;
+  padding: 5px 9px;
+  font-size: 11px;
+}
+
+.shortcut-settings-tip {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.shortcut-settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shortcut-setting-row {
+  min-height: 44px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.shortcut-setting-row:last-child {
+  border-bottom: 0;
+}
+
+.shortcut-setting-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.shortcut-binding-btn,
+.shortcut-clear-btn {
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.045);
+  cursor: pointer;
+  transition: border-color .18s ease, background-color .18s ease, color .18s ease, transform .18s ease;
+}
+
+.shortcut-binding-btn {
+  min-width: 122px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font: 600 12px/1.2 ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+
+.shortcut-binding-btn:hover,
+.shortcut-binding-btn.is-recording {
+  border-color: rgba(var(--dynamic-color, 16, 185, 129), .75);
+  background: rgba(var(--dynamic-color, 16, 185, 129), .14);
+  color: rgb(var(--dynamic-color, 16, 185, 129));
+}
+
+.shortcut-binding-btn.is-recording {
+  animation: shortcut-recording-pulse 1.15s ease-in-out infinite;
+}
+
+.shortcut-clear-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  font-size: 19px;
+  line-height: 1;
+  color: var(--text-secondary);
+}
+
+.shortcut-clear-btn:hover {
+  color: #fff;
+  border-color: rgba(239, 68, 68, .75);
+  background: rgba(239, 68, 68, .16);
+}
+
+@keyframes shortcut-recording-pulse {
+  50% { transform: scale(1.025); box-shadow: 0 0 0 4px rgba(var(--dynamic-color, 16, 185, 129), .11); }
+}
+
+@media (max-width: 640px) {
+  .shortcut-setting-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .shortcut-setting-controls {
+    align-self: stretch;
+  }
+
+  .shortcut-binding-btn {
+    flex: 1;
+  }
 }
 
 /* Animated switch used by boolean settings. */

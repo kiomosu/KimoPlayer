@@ -323,13 +323,6 @@ function buildPrefsTab() {
         </div>
         <div class="debug-slider-row">
           <div class="debug-slider-label">
-            <span>字抬升幅度</span>
-            <span id="dbg-lift-val">${prefs.liftAmplitude ?? 4}px</span>
-          </div>
-          <input type="range" class="debug-slider" id="dbg-lift" min="0" max="12" value="${prefs.liftAmplitude ?? 4}" step="0.5">
-        </div>
-        <div class="debug-slider-row">
-          <div class="debug-slider-label">
             <span>滚动对齐位置</span>
             <span id="dbg-align-val">${Math.round((prefs.scrollAlign ?? 0.5) * 100)}%</span>
           </div>
@@ -676,7 +669,6 @@ function bindEvents(player) {
 
   bindPrefSlider('#dbg-fontsize', '#dbg-fontsize-val', 'fontSize', null, v => `${v}px`);
   bindPrefSlider('#dbg-linespacing', '#dbg-linespacing-val', 'lineSpacing', null, v => v.toFixed(2));
-  bindPrefSlider('#dbg-lift', '#dbg-lift-val', 'liftAmplitude', null, v => `${v}px`);
   bindPrefSlider('#dbg-align', '#dbg-align-val', 'scrollAlign', v => v / 100, v => `${Math.round(v * 100)}%`);
   bindPrefSlider('#dbg-fontweight', '#dbg-fontweight-val', 'fontWeight', null, v => `${v}`);
 

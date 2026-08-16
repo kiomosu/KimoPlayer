@@ -24,6 +24,7 @@ const POST_WORD_OVERSHOOT_TIME = 0.12;
 const POST_OVERSHOOT_PCT = 112;
 
 function getWordEnd(word) {
+  if (!word) return 0;
   if (word.endTime != null && word.endTime > word.time) {
     return word.endTime;
   }
@@ -38,6 +39,10 @@ function getWordEnd(word) {
  * past状态的字包含 postFill 字段（0→1，过渡带推出进度）。
  */
 export function calculateWordFillStates(charWords, currentTime) {
+  // Lyrics without word-level timing are valid (plain TTML/LRC and some
+  // interlude rows). Keep the sync loop alive instead of dereferencing an
+  // absent character timeline.
+  if (!Array.isArray(charWords)) charWords = [];
   const totalChars = charWords.length;
   const states = new Array(totalChars);
   let activeIdx = -1;
@@ -46,6 +51,10 @@ export function calculateWordFillStates(charWords, currentTime) {
 
   for (let i = 0; i < totalChars; i++) {
     const word = charWords[i];
+    if (!word) {
+      states[i] = { state: 'future', fillPct: 0, postFill: 0 };
+      continue;
+    }
     const start = word.time;
     const end = getWordEnd(word);
 
@@ -84,10 +93,12 @@ export function calculatePlayheadXForRow({
   currentTime,
   transitionWidthPx,
 }) {
-  const row = rowsData[rowIndex];
+  const safeRowsData = Array.isArray(rowsData) ? rowsData : [];
+  const safeCharWords = Array.isArray(charWords) ? charWords : [];
+  const row = safeRowsData[rowIndex];
   if (!row) return 0;
 
-  const { wordData } = row;
+  const wordData = Array.isArray(row.wordData) ? row.wordData : [];
   const rowWidth = row.width;
   const rowStartIdx = row.startIdx;
   const rowEndIdx = row.endIdx;
@@ -96,7 +107,7 @@ export function calculatePlayheadXForRow({
   // 行还没开始
   if (lastCompletedIdx < rowStartIdx && activeIdx < rowStartIdx) {
     if (activeIdx === -1 && lastCompletedIdx === -1) {
-      const firstWord = charWords[rowStartIdx];
+      const firstWord = safeCharWords[rowStartIdx];
       if (firstWord) {
         const timeToStart = firstWord.time - currentTime;
         if (timeToStart < LEADIN_TIME && timeToStart > 0) {
@@ -110,7 +121,7 @@ export function calculatePlayheadXForRow({
 
   // 行已完全唱完
   if (lastCompletedIdx >= rowEndIdx) {
-    const lastWord = charWords[rowEndIdx];
+    const lastWord = safeCharWords[rowEndIdx];
     if (lastWord) {
       const overshootTime = currentTime - getWordEnd(lastWord);
       if (overshootTime < OVERRUN_TIME && overshootTime >= 0) {
@@ -133,8 +144,8 @@ export function calculatePlayheadXForRow({
   // 间隙中：上一个字已past，下一个字还未开始（在本行内）
   if (lastCompletedIdx >= rowStartIdx && lastCompletedIdx < rowEndIdx) {
     const nextIdx = lastCompletedIdx + 1;
-    const nextWord = charWords[nextIdx];
-    const prevWord = charWords[lastCompletedIdx];
+    const nextWord = safeCharWords[nextIdx];
+    const prevWord = safeCharWords[lastCompletedIdx];
     if (nextWord && prevWord) {
       const nextOnRow = nextIdx <= rowEndIdx;
       if (nextOnRow) {
@@ -187,6 +198,7 @@ export function getWordRenderPercent(wordState) {
  * 兼容旧接口：计算逐字字符进度（用于 mini-bar / 桌面歌词 / 词效模块）。
  */
 export function calculateKaraokePlayheadState(charWords, currentTime) {
+  if (!Array.isArray(charWords)) charWords = [];
   const { states, activeIdx, activeFillPct, lastCompletedIdx, totalChars } =
     calculateWordFillStates(charWords, currentTime);
 

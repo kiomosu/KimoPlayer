@@ -223,15 +223,6 @@
               </div>
             </div>
 
-            <!-- Lyric Lift Amplitude Control with Popover Slider -->
-            <div class="lyrics-control-item lift-control popover-align-right">
-              <button class="control-btn">L</button>
-              <div class="slider-popover">
-                <input type="range" id="slider-lyric-lift" min="0" max="5" step="0.5" value="4" class="range-slider" />
-                <span id="lyric-lift-value" class="slider-value-label">抬起: 4.0px</span>
-              </div>
-            </div>
-            
             <!-- Lyric Animation Mode Control (Stagger vs Row) -->
             <div class="lyrics-control-item animation-control popover-align-right">
               <button id="btn-stagger-toggle" class="control-btn">
@@ -240,6 +231,21 @@
               </button>
               <div class="slider-popover">
                 <span id="lyric-stagger-value" class="slider-value-label">逐字依次上移</span>
+              </div>
+            </div>
+
+            <!-- Lyric timing compatibility quick control -->
+            <div class="lyrics-control-item compatibility-control popover-align-right">
+              <button id="btn-lyrics-compatibility" class="control-btn" title="歌词时间兼容模式" aria-label="歌词时间兼容模式">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/><path d="M17 16v5M14.5 18.5h5"/></svg>
+              </button>
+              <div class="slider-popover lyrics-compatibility-popover">
+                <div class="lyrics-compatibility-options" role="group" aria-label="歌词时间兼容模式">
+                  <button type="button" class="lyrics-compatibility-option" data-value="auto">自动</button>
+                  <button type="button" class="lyrics-compatibility-option" data-value="char">逐字</button>
+                  <button type="button" class="lyrics-compatibility-option" data-value="line">逐行</button>
+                </div>
+                <span id="lyric-compatibility-value" class="slider-value-label">兼容: 自动</span>
               </div>
             </div>
 
@@ -425,6 +431,7 @@
             </div>
           </div>
         </div>
+      </footer>
     <!-- 🌟 播放列表弹出面板 🌟 -->
     <div id="playlist-panel" class="playlist-panel">
       <div class="playlist-panel-header">

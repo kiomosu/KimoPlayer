@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "KimoPlayer",
-  "version": "1.8.2",
+  "version": "1.8.5",
   "identifier": "com.kimo.player",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -11,149 +11,30 @@
   },
   "app": {
     "withGlobalTauri": true,
-    "windows": [
-      {
-        "label": "main",
-        "title": "KimoPlayer",
-        "width": 1000,
-        "height": 700,
-        "minWidth": 820,
-        "minHeight": 560,
-        "decorations": false,
-        "transparent": true,
-        "visible": false
-      }
-    ],
-    "security": {
-      "csp": null,
-      "assetProtocol": {
-        "enable": true,
-        "scope": [
-          "**"
-        ]
-      }
-    }
+    "windows": [{"label":"main","title":"KimoPlayer","width":1000,"height":700,"minWidth":820,"minHeight":560,"decorations":false,"transparent":true,"visible":false}],
+    "security": {"csp": null,"assetProtocol":{"enable":true,"scope":["**"]}}
   },
   "bundle": {
     "active": true,
     "targets": "all",
-    "resources": [
-      "icons/file-types"
-    ],
+    "resources": ["icons/file-types"],
     "fileAssociations": [
-      {
-        "name": "MP3 Audio",
-        "ext": [
-          "mp3"
-        ],
-        "description": "MP3 Audio File"
-      },
-      {
-        "name": "FLAC Audio",
-        "ext": [
-          "flac"
-        ],
-        "description": "FLAC Lossless Audio File"
-      },
-      {
-        "name": "WAV Audio",
-        "ext": [
-          "wav"
-        ],
-        "description": "WAV Audio File"
-      },
-      {
-        "name": "OGG Audio",
-        "ext": [
-          "ogg"
-        ],
-        "description": "OGG Vorbis Audio File"
-      },
-      {
-        "name": "M4A Audio",
-        "ext": [
-          "m4a"
-        ],
-        "description": "M4A Audio File"
-      },
-      {
-        "name": "AAC Audio",
-        "ext": [
-          "aac"
-        ],
-        "description": "AAC Audio File"
-      },
-      {
-        "name": "WMA Audio",
-        "ext": [
-          "wma"
-        ],
-        "description": "WMA Audio File"
-      },
-      {
-        "name": "Opus Audio",
-        "ext": [
-          "opus"
-        ],
-        "description": "Opus Audio File"
-      },
-      {
-        "name": "APE Audio",
-        "ext": [
-          "ape"
-        ],
-        "description": "Monkey's Audio File"
-      },
-      {
-        "name": "AIFF Audio",
-        "ext": [
-          "aiff"
-        ],
-        "description": "AIFF Audio File"
-      },
-      {
-        "name": "ALAC Audio",
-        "ext": [
-          "alac"
-        ],
-        "description": "Apple Lossless Audio File"
-      },
-      {
-        "name": "AMR Audio",
-        "ext": [
-          "amr"
-        ],
-        "description": "AMR Audio File"
-      },
-      {
-        "name": "DTS Audio",
-        "ext": [
-          "dts"
-        ],
-        "description": "DTS Audio File"
-      },
-      {
-        "name": "Dolby Digital Audio",
-        "ext": [
-          "dd",
-          "ac3"
-        ],
-        "description": "Dolby Digital Audio File"
-      }
+      {"name":"MP3 Audio","ext":["mp3"],"description":"MP3 Audio File"},
+      {"name":"FLAC Audio","ext":["flac"],"description":"FLAC Lossless Audio File"},
+      {"name":"WAV Audio","ext":["wav"],"description":"WAV Audio File"},
+      {"name":"OGG Audio","ext":["ogg"],"description":"OGG Vorbis Audio File"},
+      {"name":"M4A Audio","ext":["m4a"],"description":"M4A Audio File"},
+      {"name":"AAC Audio","ext":["aac"],"description":"AAC Audio File"},
+      {"name":"WMA Audio","ext":["wma"],"description":"WMA Audio File"},
+      {"name":"Opus Audio","ext":["opus"],"description":"Opus Audio File"},
+      {"name":"APE Audio","ext":["ape"],"description":"Monkey's Audio File"},
+      {"name":"AIFF Audio","ext":["aiff"],"description":"AIFF Audio File"},
+      {"name":"ALAC Audio","ext":["alac"],"description":"Apple Lossless Audio File"},
+      {"name":"AMR Audio","ext":["amr"],"description":"AMR Audio File"},
+      {"name":"DTS Audio","ext":["dts"],"description":"DTS Audio File"},
+      {"name":"Dolby Digital Audio","ext":["dd","ac3"],"description":"Dolby Digital Audio File"}
     ],
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
-    "windows": {
-      "nsis": {
-        "installerIcon": "icons/icon.ico",
-        "uninstallerIcon": "icons/icon.ico",
-        "installerHooks": "windows/nsis/file-type-icons.nsh"
-      }
-    }
+    "icon": ["icons/32x32.png","icons/128x128.png","icons/128x128@2x.png","icons/icon.icns","icons/icon.ico"],
+    "windows": {"nsis":{"installerIcon":"icons/icon.ico","uninstallerIcon":"icons/icon.ico","installerHooks":"windows/nsis/file-type-icons.nsh"}}
   }
 }

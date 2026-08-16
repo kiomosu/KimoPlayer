@@ -247,4 +247,3 @@ export function createDesktopLyricsController({ showToast, player }) {
   _instance = { getStyle, setVisible, sync, syncKaraokeProgress, updateStyle, setPlayer, notifyPlaybackState };
   return _instance;
 }
-

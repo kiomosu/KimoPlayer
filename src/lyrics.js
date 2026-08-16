@@ -1,4 +1,4 @@
-// ── LRC Parser (两遍扫描法：先解析所有行，再按时间戳分组合并翻译) ──
+// ── LRC/ELRC Parser (两遍扫描法：先解析所有行，再按时间戳分组合并翻译) ──
 
 export function parseLRC(text) {
   const rawLines = text.replace(/\r/g, '').split('\n').map(l => l.trim()).filter(l => l.length > 0);
@@ -16,31 +16,35 @@ export function parseLRC(text) {
   };
 
   const getFirstTS = (line) => {
-    const m = line.match(/\[(\d{1,2}:\d{2}[.:]\d{1,3})\]/);
-    return m ? parseTS(m[1]) : null;
+    const m = line.match(/(?:\[(\d{1,2}:\d{2}[.:]\d{1,3})\]|<(\d{1,2}:\d{2}[.:]\d{1,3})>)/);
+    const value = m ? (m[1] || m[2]) : null;
+    return value ? parseTS(value) : null;
   };
 
-  // Check if line has word-by-word timing: text between [ts] markers
+  // ELRC uses <timestamp> for word boundaries, while enhanced LRC variants
+  // may mix angle and square timestamp markers on the same line.
   const hasWordTiming = (line) => {
-    const timestamps = line.match(/\[\d{1,2}:\d{2}[.:]\d{1,3}\]/g) || [];
-    // [start]whole line[end] is line-timed LRC. Word timing needs at
-    // least one additional boundary between the line start and end.
-    return timestamps.length >= 3;
+    const squareTimestamps = line.match(/\[\d{1,2}:\d{2}[.:]\d{1,3}\]/g) || [];
+    const angleTimestamps = line.match(/<\d{1,2}:\d{2}[.:]\d{1,3}>/g) || [];
+    // A line with only one timestamp at the front and one at the back is
+    // line-timed, even when ELRC writes both markers with angle brackets.
+    // Word timing needs at least one additional timestamp boundary.
+    return squareTimestamps.length + angleTimestamps.length >= 3;
   };
 
   // Parse word-timed line into individual words (syllables)
   // ?� 借鉴 BetterLyrics：syllable 保留原始文本（含空格），不 trim；PrimaryText=Concat 天然保留空格 ?�
   const parseWords = (line) => {
     const words = [];
-    const regex = /\[(\d{1,2}:\d{2}[.:]\d{1,3})\]([^\[\]]*)/g;
+    const regex = /(?:\[(\d{1,2}:\d{2}[.:]\d{1,3})\]|<(\d{1,2}:\d{2}[.:]\d{1,3})>)([^\[\]<]*)/g;
     let lastTS = null;
     const segments = [...line.matchAll(regex)];
 
     segments.forEach((match, index) => {
-      const time = parseTS(match[1]);
-      const text = match[2] || '';
+      const time = parseTS(match[1] || match[2]);
+      const text = match[3] || '';
       const nextTime = index + 1 < segments.length
-        ? parseTS(segments[index + 1][1])
+        ? parseTS(segments[index + 1][1] || segments[index + 1][2])
         : null;
       if (time === null) return;
       lastTS = time;
@@ -82,13 +86,14 @@ const joinWords = (words) => {
 
   // Get plain text from a line (strip all timestamps)
   const getPlainText = (line) => {
-    return line.replace(/\[\d{1,2}:\d{2}[.:]\d{1,3}\]/g, '').trim();
+    return line.replace(/(?:\[\d{1,2}:\d{2}[.:]\d{1,3}\]|<\d{1,2}:\d{2}[.:]\d{1,3}>)/g, '').trim();
   };
 
   const getLastTS = (line) => {
-    const matches = [...line.matchAll(/\[(\d{1,2}:\d{2}[.:]\d{1,3})\]/g)];
+    const matches = [...line.matchAll(/(?:\[(\d{1,2}:\d{2}[.:]\d{1,3})\]|<(\d{1,2}:\d{2}[.:]\d{1,3})>)/g)];
     if (matches.length < 2) return null;
-    return parseTS(matches[matches.length - 1][1]);
+    const last = matches[matches.length - 1];
+    return parseTS(last[1] || last[2]);
   };
 
   // ── Pass 1: Parse every line into an entry ──
@@ -133,7 +138,9 @@ const joinWords = (words) => {
       text: plainText,
       words,
       isWordTimed,
-      timingFormat: isWordTimed ? 'word-lrc' : 'lrc',
+      timingFormat: isWordTimed
+        ? (/<\d{1,2}:\d{2}[.:]\d{1,3}>/.test(line) ? 'enhanced-lrc' : 'word-lrc')
+        : 'lrc',
       end: lastTS,
     });
   }
@@ -199,15 +206,137 @@ const joinWords = (words) => {
   return result;
 }
 
+// Explicit ELRC entry point for callers that already know the source format.
+// parseLRC also auto-detects ELRC angle-bracket timestamps for providers that
+// still label enhanced lyrics as plain "lrc".
+export function parseELRC(text) {
+  return parseLRC(text);
+}
+
 function getRobustAttribute(el, attrName) {
   if (!el || !el.attributes) return null;
+  const normalizedName = String(attrName || '').toLowerCase();
   for (let i = 0; i < el.attributes.length; i++) {
     const attr = el.attributes[i];
-    if (attr.name === attrName || attr.name.endsWith(':' + attrName)) {
+    const name = String(attr.name || '').toLowerCase();
+    const localName = String(attr.localName || '').toLowerCase();
+    if (name === normalizedName
+      || localName === normalizedName
+      || name.endsWith(':' + normalizedName)) {
       return attr.value;
     }
   }
   return el.getAttribute(attrName);
+}
+
+function hasExplicitDuetRole(role) {
+  const value = String(role || '').trim().toLowerCase();
+  return /(?:^|[-_\s])(?:l1|l2|v1|v2|voice1|voice2|vocal1|vocal2|singer1|singer2|lead1|lead2|both)(?:$|[-_\s])/.test(value);
+}
+
+function getExplicitDuetLane(role) {
+  const value = String(role || '').trim().toLowerCase();
+  const laneOne = /(?:^|[-_\s])(?:l1|v1|voice1|vocal1|singer1|lead1)(?:$|[-_\s])/.test(value);
+  const laneTwo = /(?:^|[-_\s])(?:l2|v2|voice2|vocal2|singer2|lead2)(?:$|[-_\s])/.test(value);
+  if (laneOne && !laneTwo) return 0;
+  if (laneTwo && !laneOne) return 1;
+  return null;
+}
+
+function getTTMLPreciseEnd(line) {
+  if (Number.isFinite(line?.end) && line.end > line.time) return line.end;
+  if (Array.isArray(line?.words) && line.words.length > 0) {
+    const timedWords = line.words.filter(word => Number.isFinite(word?.end) && word.end > line.time);
+    const lastWord = timedWords[timedWords.length - 1];
+    if (lastWord) return lastWord.end;
+  }
+  return null;
+}
+
+// Infer only real lyric timing overlaps. `endTime` is deliberately excluded:
+// the renderer pads it for scrolling, which would turn ordinary adjacent
+// lyrics into a fake duet. Explicit ttm:agent/role or API isDuet remains
+// authoritative.
+export function assignDuetLanes(lines, { inferTiming = false } = {}) {
+  const candidates = lines
+    .filter(line => !line.isBackground && Number.isFinite(line.time))
+    .sort((a, b) => a.time - b.time);
+  const assigned = new Set();
+
+  for (const line of candidates) {
+    const sourceLane = Number(line.duetLane);
+    const roleLane = getExplicitDuetLane(line.role);
+    if (Number.isInteger(sourceLane)) {
+      line.duetLane = Math.max(0, Math.min(1, sourceLane));
+      assigned.add(line);
+    } else if (roleLane !== null) {
+      line.duetLane = roleLane;
+      assigned.add(line);
+    } else if (line.isDuet === true) {
+      // LunaBeat/AMLL uses isDuet as a side flag: true means the secondary
+      // singer row on the right. It is not a request to pair all marked rows
+      // globally and alternate them between left and right.
+      line.duetLane = 1;
+      assigned.add(line);
+    }
+  }
+
+  if (!inferTiming) return lines;
+
+  for (let index = 0; index < candidates.length - 1; index += 1) {
+    const first = candidates[index];
+    const second = candidates[index + 1];
+    if (assigned.has(first) || assigned.has(second)) continue;
+    const firstEnd = getTTMLPreciseEnd(first);
+    const secondEnd = getTTMLPreciseEnd(second);
+    const startDistance = Math.abs(first.time - second.time);
+    const sameStart = startDistance <= 0.01;
+    const overlap = Number.isFinite(firstEnd) && Number.isFinite(secondEnd)
+      ? Math.min(firstEnd, secondEnd) - Math.max(first.time, second.time)
+      : 0;
+
+    // A small tolerance covers timestamp rounding, while avoiding the
+    // padded overlap used by the normal lyric scroll state.
+    // Do not classify a long, sustained line and a later ordinary line as a
+    // duet merely because their precise word ranges happen to overlap.
+    if (sameStart || (startDistance <= 1.5 && overlap >= 0.12)) {
+      first.duetLane = 0;
+      second.duetLane = 1;
+      first.isDuet = true;
+      second.isDuet = true;
+      assigned.add(first);
+      assigned.add(second);
+      index += 1;
+    }
+  }
+
+  return lines;
+}
+
+// Convert local TTML/LRC, JSON, and LunaBeat responses into one canonical
+// lyric-line shape before rendering or playback synchronization.
+export function normalizeLyricsLines(lines, options = {}) {
+  if (!Array.isArray(lines)) return [];
+  const normalized = lines.map(line => {
+    const words = Array.isArray(line?.words) ? line.words : null;
+    const text = String(line?.text ?? (words ? words.map(word => word?.text || '').join('') : ''));
+    const time = Number(line?.time);
+    const end = Number(line?.end);
+    const role = String(line?.role || '');
+    const isBackground = Boolean(line?.isBackground ?? line?.isBG);
+    const isDuet = Boolean(line?.isDuet || hasExplicitDuetRole(role));
+    return {
+      ...line,
+      time: Number.isFinite(time) ? time : 0,
+      end: Number.isFinite(end) && end > time ? end : (line?.end ?? null),
+      text,
+      words,
+      role,
+      isBackground,
+      isDuet,
+    };
+  });
+  return assignDuetLanes(normalized, options);
 }
 
 export function parseTTML(xmlText) {
@@ -417,7 +546,8 @@ export function parseTTML(xmlText) {
         translation,
         words: words.length > 1 ? words : null,
         role,
-        isBackground
+        isBackground,
+        isDuet: hasExplicitDuetRole(role),
       });
     }
 
@@ -461,14 +591,14 @@ export function parseTTML(xmlText) {
   const deduplicated = [];
   const seen = new Set();
   for (const item of result) {
-    const key = `${item.time.toFixed(2)}_${item.text.substring(0, 20)}`;
+    const key = `${item.time.toFixed(2)}_${item.text.substring(0, 20)}_${item.role || ''}_${item.isBackground ? 'bg' : 'fg'}`;
     if (!seen.has(key)) {
       seen.add(key);
       deduplicated.push(item);
     }
   }
   deduplicated.sort((a, b) => a.time - b.time);
-  return deduplicated;
+  return normalizeLyricsLines(deduplicated, { inferTiming: true });
 }
 
 
@@ -628,7 +758,7 @@ export function parseJSONLyrics(jsonText) {
     }
 
     result.sort((a, b) => a.time - b.time);
-    return result;
+    return normalizeLyricsLines(result);
   } catch (e) {
     console.error('[parseJSONLyrics] failed:', e);
     return [];

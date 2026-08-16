@@ -3505,13 +3505,13 @@ async fn download_and_install_update(url: String, app: tauri::AppHandle) -> Resu
         let app_path = quote_ps(&current_exe);
 
         // Run the installer from a detached hidden helper. The current app
-        // must exit before NSIS can replace its executable; once installation
+        // must exit before Inno Setup can replace its executable; once installation
         // completes, the helper launches the updated executable from the same
         // install path.
         let update_script = format!(
             "$installer='{}'; $app='{}'; \
              Start-Sleep -Milliseconds 700; \
-             $process=Start-Process -FilePath $installer -ArgumentList '/S' -PassThru; \
+             $process=Start-Process -FilePath $installer -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -PassThru; \
              $process.WaitForExit(); \
              Start-Sleep -Milliseconds 900; \
              if (Test-Path -LiteralPath $app) {{ Start-Process -FilePath $app }}",

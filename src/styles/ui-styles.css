@@ -35,7 +35,6 @@
 /* 液态玻璃：关键表面统一覆盖为评论区材质 */
 /* 浮动元素：保留完整玻璃材质（背景+模糊+边框+阴影） */
 .app-container.ui-style-liquid .kimo-modal-card,
-.app-container.ui-style-liquid .settings-card,
 .app-container.ui-style-liquid .titlebar-button,
 .app-container.ui-style-liquid .context-menu,
 .app-container.ui-style-liquid .nav-active-indicator,
@@ -109,7 +108,6 @@
 }
 /* 浮动元素保留细边框，维持可辨识度 */
 .app-container.ui-style-solid .kimo-modal-card,
-.app-container.ui-style-solid .settings-card,
 .app-container.ui-style-solid .context-menu,
 .app-container.ui-style-solid .playlist-panel {
   border: 1px solid rgba(128, 128, 128, 0.15) !important;
@@ -137,10 +135,8 @@
 .app-container.ui-style-solid.theme-dark .kimo-modal-card,
 .app-container.ui-style-solid.theme-dark .sidebar,
 .app-container.ui-style-solid.theme-dark .player-bar,
-.app-container.ui-style-solid.theme-dark .settings-card,
 .app-container.ui-style-solid.theme-dark .content-toolbar,
 .app-container.ui-style-solid.theme-dark .sticky-header,
-.app-container.ui-style-solid.theme-dark .settings-search-sticky-header,
 .app-container.ui-style-solid.theme-dark .context-menu,
 .app-container.ui-style-solid.theme-dark .playlist-panel {
   background: #070708 !important;
@@ -150,10 +146,8 @@
 .app-container.ui-style-solid.theme-light .kimo-modal-card,
 .app-container.ui-style-solid.theme-light .sidebar,
 .app-container.ui-style-solid.theme-light .player-bar,
-.app-container.ui-style-solid.theme-light .settings-card,
 .app-container.ui-style-solid.theme-light .content-toolbar,
 .app-container.ui-style-solid.theme-light .sticky-header,
-.app-container.ui-style-solid.theme-light .settings-search-sticky-header,
 .app-container.ui-style-solid.theme-light .context-menu,
 .app-container.ui-style-solid.theme-light .playlist-panel {
   background: #f5f5f7 !important;
@@ -163,10 +157,8 @@
 .app-container.ui-style-solid.theme-grey .kimo-modal-card,
 .app-container.ui-style-solid.theme-grey .sidebar,
 .app-container.ui-style-solid.theme-grey .player-bar,
-.app-container.ui-style-solid.theme-grey .settings-card,
 .app-container.ui-style-solid.theme-grey .content-toolbar,
 .app-container.ui-style-solid.theme-grey .sticky-header,
-.app-container.ui-style-solid.theme-grey .settings-search-sticky-header,
 .app-container.ui-style-solid.theme-grey .context-menu,
 .app-container.ui-style-solid.theme-grey .playlist-panel {
   background: #e3e3e8 !important;

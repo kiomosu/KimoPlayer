@@ -5,6 +5,7 @@ export const createSearchController = ({
   saveLyricsCache,
   invoke,
   parseLRC,
+  parseELRC,
   parseTTML,
   parseJSONLyrics,
   switchTab,
@@ -104,6 +105,7 @@ export const createSearchController = ({
             if (res && res.content) {
               let parsedLines = [];
               if (res.lyrics_type === 'lrc') parsedLines = parseLRC(res.content);
+              else if (res.lyrics_type === 'elrc' || res.lyrics_type === 'enhanced-lrc') parsedLines = parseELRC(res.content);
               else if (res.lyrics_type === 'ttml') parsedLines = parseTTML(res.content);
               else if (res.lyrics_type === 'json') parsedLines = parseJSONLyrics(res.content);
               
@@ -157,15 +159,6 @@ export const createSearchController = ({
       document.getElementById('global-search-input')?.focus();
     }, 50);
   };
-
-  // Keyboard shortcut listener
-  window.addEventListener('keydown', (e) => {
-    // Ctrl + F opens search tab
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
-      e.preventDefault();
-      openSearch();
-    }
-  });
 
   // Wire search buttons to switch tabs and focus
   document.getElementById('float-search')?.addEventListener('click', openSearch);

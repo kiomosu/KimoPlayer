@@ -258,8 +258,16 @@ body:has(#metadata-editor-modal.active) .floating-actions {
 }
 
 /* ── UI 风格适配：搜索框（悬浮按钮同款材质，跟随 ui-style × theme）── */
+/* Canonical floating-surface material. The settings page container stays
+   transparent; search fields, settings cards, and secondary player controls
+   deliberately share this exact contract. Keep material declarations for
+   .settings-card out of background, page-style, and feature-specific stylesheets. */
 :is(.app-container, body)[class*="ui-style-"] .search-box,
-:is(.app-container, body)[class*="ui-style-"] .settings-search-box {
+:is(.app-container, body)[class*="ui-style-"] .settings-search-box,
+:is(.app-container, body)[class*="ui-style-"] .settings-card,
+:is(.app-container, body)[class*="ui-style-"] .player-bar .action-btn,
+:is(.app-container, body)[class*="ui-style-"] .player-bar .player-btn:not(.play-pause),
+:is(.app-container, body)[class*="ui-style-"] .player-bar .volume-container {
   background: var(--floating-surface-bg) !important;
   border-color: var(--floating-surface-border) !important;
   box-shadow: var(--floating-surface-shadow) !important;
@@ -282,4 +290,18 @@ body:has(#metadata-editor-modal.active) .floating-actions {
 :is(.app-container, body)[class*="ui-style-"]:is([class*="theme-light"], [class*="theme-grey"]) .settings-search-box:focus-within {
   border-color: rgba(var(--dynamic-color, 0, 136, 204), 0.3) !important;
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8), 0 10px 25px rgba(var(--dynamic-color, 0, 136, 204), 0.12) !important;
+}
+
+/* The primary play button keeps its album-colour emphasis; only secondary
+   player controls receive the shared hover and active states below. */
+:is(.app-container, body)[class*="ui-style-"] .player-bar .action-btn:hover,
+:is(.app-container, body)[class*="ui-style-"] .player-bar .player-btn:not(.play-pause):hover,
+:is(.app-container, body)[class*="ui-style-"] .player-bar .volume-container:hover {
+  background: var(--floating-surface-hover) !important;
+  border-color: rgba(var(--dynamic-color, 0, 180, 230), 0.45) !important;
+}
+
+:is(.app-container, body)[class*="ui-style-"] .player-bar .action-btn.is-active {
+  background: rgba(var(--dynamic-color, 0, 180, 230), 0.14) !important;
+  border-color: rgba(var(--dynamic-color, 0, 180, 230), 0.36) !important;
 }

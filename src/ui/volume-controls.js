@@ -24,6 +24,7 @@ export function initializeVolumeControls(player) {
   };
 
   updateVolumeUI();
+  window.addEventListener('kimo-volume-changed', updateVolumeUI);
 
   let previousVolume = savedVolume > 0 ? savedVolume : 0.8;
 

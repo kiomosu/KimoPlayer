@@ -79,14 +79,22 @@ export function synthesizePerCharWords(line, nextLine) {
   const charDuration = lineDuration / count;
   line.end = lineEndClamped;
 
+  let wrapGroup = -1;
   return chars.map((char, index) => {
     const isSpace = /^\s$/.test(char);
+    if (!isSpace) {
+      if (index === 0 || /^\s$/.test(chars[index - 1])) wrapGroup += 1;
+    }
     return {
       time: line.time + index * charDuration,
       duration: charDuration,
       text: char,
       isCharLevel: true,
       isSpace,
+      // Keep synthesized karaoke characters together during automatic
+      // wrapping. The timing remains per-character, but a normal word is
+      // moved as one visual unit instead of being split across rows.
+      wrapGroup: isSpace ? null : wrapGroup,
     };
   });
 }

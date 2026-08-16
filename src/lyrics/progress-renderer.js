@@ -53,7 +53,6 @@ function setWordLinePercent(word, percent) {
     word.classList.remove('word-singing', 'word-active');
   }
 }
-
 function setWordCharFill(word, fillPercent) {
   const clamped = Math.max(0, Math.min(100, fillPercent));
   const rounded = clamped.toFixed(1);
@@ -125,7 +124,7 @@ export function renderRowKaraokeProgress({
     const isRowPast = lastCompletedIdx >= rowEndIdx;
     const isRowPending = !isLeadIn && lastCompletedIdx < rowStartIdx && activeIdx < rowStartIdx;
 
-    const wordData = row.wordData;
+    const wordData = Array.isArray(row.wordData) ? row.wordData : [];
     wordData.forEach(wd => {
       const wordEl = wd.word;
 
@@ -167,6 +166,13 @@ export function renderClassicCharProgress({ wordSpans, charWords, currentTime })
 
     const clamped = Math.max(0, Math.min(100, fill));
     const charFillVal = `${clamped.toFixed(1)}%`;
+    // Classic karaoke must own the progress variables completely. A hot
+    // update from the experimental row renderer can leave --line-percent
+    // inline, which has higher priority in CSS and freezes the visible fill
+    // even while --char-fill keeps changing.
+    barSpan.style.removeProperty('--line-percent');
+    barSpan.style.removeProperty('--line-width');
+    barSpan.style.removeProperty('--char-offset');
     // ⭐ 值守卫：已填满/未开始的字 fill 恒定，跳过写入（每帧 60-80% 的字可省）
     if (barSpan._lastCharFill !== charFillVal) {
       barSpan._lastCharFill = charFillVal;
@@ -177,6 +183,9 @@ export function renderClassicCharProgress({ wordSpans, charWords, currentTime })
         barSpan._barSubSpans = subSpans;
       }
       for (let subIndex = 0; subIndex < subSpans.length; subIndex += 1) {
+        subSpans[subIndex].style.removeProperty('--line-percent');
+        subSpans[subIndex].style.removeProperty('--line-width');
+        subSpans[subIndex].style.removeProperty('--char-offset');
         subSpans[subIndex].style.setProperty('--char-fill', charFillVal);
       }
     }

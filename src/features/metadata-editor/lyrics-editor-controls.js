@@ -17,7 +17,7 @@ export function bindLyricsEditorControls({
         multiple: false,
         filters: [{
           name: 'Lyrics Files',
-          extensions: ['lrc', 'ttml', 'json', 'txt'],
+          extensions: ['lrc', 'elrc', 'ttml', 'json', 'txt'],
         }],
       });
       if (!selected) return;

@@ -9,6 +9,7 @@
   padding: 0 30px;
   position: relative;
   z-index: 2;
+  overflow: visible;
 }
 
 /* Restored Footer Styles */
@@ -599,8 +600,8 @@
 }
 
 .player-actions {
-  width: 304px;
-  min-width: 304px;
+  width: max-content;
+  min-width: max-content;
   display: flex;
   justify-content: flex-end;
   align-items: center;

@@ -1,4 +1,4 @@
-import { parseJSONLyrics, parseLRC, parseTTML } from '../../lyrics.js';
+import { parseJSONLyrics, parseLRC, parseELRC, parseTTML } from '../../lyrics.js';
 import {
   formatLrcTime,
   formatLrcTimePrefix,
@@ -142,10 +142,11 @@ export function parseEditableLyrics(rawText) {
     return { type: 'ttml', lyrics: parseTTML(rawText) };
   }
 
-  const lyrics = parseLRC(rawText);
+  const isEnhancedLrc = /<\d+:\d+(?:\.\d+)?>/.test(rawText);
+  const lyrics = isEnhancedLrc ? parseELRC(rawText) : parseLRC(rawText);
   const isWordTimedLrc = lyrics.some(row => Array.isArray(row.words) && row.words.length > 0);
   return {
-    type: isWordTimedLrc ? 'word-lrc' : 'lrc',
+    type: isEnhancedLrc ? 'enhanced-lrc' : (isWordTimedLrc ? 'word-lrc' : 'lrc'),
     lyrics,
   };
 }

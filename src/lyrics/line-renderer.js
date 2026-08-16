@@ -48,7 +48,7 @@ function appendSplitKanjiRubyWords({ mainDiv, charWords, coreText, ruby, time, d
     }
   }
 
-  units.forEach(unit => {
+  units.forEach((unit, index) => {
     const subSpan = document.createElement('span');
     subSpan.className = 'lyrics-word is-ruby-word';
     subSpan.appendChild(createRubyContainer({
@@ -59,8 +59,9 @@ function appendSplitKanjiRubyWords({ mainDiv, charWords, coreText, ruby, time, d
     mainDiv.appendChild(subSpan);
 
     charWords.push({
-      time,
-      duration,
+      time: time + duration * index / units.length,
+      end: time + duration * (index + 1) / units.length,
+      duration: duration / units.length,
       topoPos: charWords.length,
       text: unit.kanji,
     });
@@ -95,14 +96,51 @@ function resolveWordsToRender(words, staggerMode) {
   return words;
 }
 
+// NativeAmllLyricsView builds its wave from individual Unicode characters,
+// distributing each timed word's duration evenly across its characters.
+function splitTimedWordsToCharacters(words) {
+  return words.flatMap((word, wordIndex) => {
+    if (word.ruby) return [word];
+    const rawText = word.text || '';
+    const leading = rawText.match(/^\s*/)?.[0] || '';
+    const trailing = rawText.match(/\s*$/)?.[0] || '';
+    const core = rawText.slice(leading.length, rawText.length - trailing.length);
+    const characters = Array.from(core);
+    if (characters.length <= 1) return [word];
+    const duration = Number.isFinite(word.end) && word.end > word.time
+      ? word.end - word.time
+      : Math.max(0.001, word.duration || 0.3);
+    return characters.map((character, index) => ({
+      ...word,
+      text: `${index === 0 ? leading : ''}${character}${index === characters.length - 1 ? trailing : ''}`,
+      time: word.time + duration * index / characters.length,
+      end: word.time + duration * (index + 1) / characters.length,
+      duration: duration / characters.length,
+      spaceBefore: index === 0 && word.spaceBefore,
+      wrapGroup: wordIndex,
+    }));
+  });
+}
+
 export function renderTimedLyricWords({
   mainDiv,
   line,
   nextLine,
   staggerMode,
+  compatibilityMode = 'auto',
 }) {
   const charWords = [];
-  const wordsToRender = resolveWordsToRender(line.words, staggerMode);
+  const resolvedWords = resolveWordsToRender(line.words, staggerMode);
+  // Only the letter-by-letter mode should split a timed word into characters.
+  // Previously this ran for both modes, so switching between word lift and
+  // letter lift rebuilt identical spans and appeared to do nothing.
+  const wordsToRender = compatibilityMode !== 'line'
+    && (compatibilityMode === 'char' || staggerMode === 'stagger')
+    ? splitTimedWordsToCharacters(resolvedWords)
+    : resolvedWords;
+
+  let activeWrapGroup = null;
+  let wrapContainer = null;
 
   wordsToRender.forEach((word, wordIndex) => {
     const rawText = word.text || '';
@@ -111,13 +149,29 @@ export function renderTimedLyricWords({
     // (or only exposes it through the parser's `spaceBefore` flag). Preserve
     // that separator when the word text itself has no leading whitespace.
     if (wordIndex > 0 && (leadingMatch || word.spaceBefore)) {
+      activeWrapGroup = null;
+      wrapContainer = null;
       mainDiv.appendChild(document.createTextNode(leadingMatch?.[1] || ' '));
     }
+
+    const hasWrapGroup = Number.isInteger(word.wrapGroup);
+    if (hasWrapGroup && word.wrapGroup !== activeWrapGroup) {
+      wrapContainer = document.createElement('span');
+      wrapContainer.className = 'lyrics-word-group';
+      mainDiv.appendChild(wrapContainer);
+      activeWrapGroup = word.wrapGroup;
+    } else if (!hasWrapGroup) {
+      activeWrapGroup = null;
+      wrapContainer = null;
+    }
+    const appendTarget = hasWrapGroup && wrapContainer ? wrapContainer : mainDiv;
 
     const trailingMatch = rawText.match(/(\s+)$/);
     const coreText = rawText.replace(/^\s+/, '').replace(/\s+$/, '');
 
     if (coreText.length === 0) {
+      activeWrapGroup = null;
+      wrapContainer = null;
       if (trailingMatch && wordIndex > 0) {
         mainDiv.appendChild(document.createTextNode(trailingMatch[1]));
       } else if (rawText.length > 0) {
@@ -142,14 +196,6 @@ export function renderTimedLyricWords({
     // 相邻时间单元共用同一个边界：当前单元的 end 就是下一单元的
     // begin。不要为了可见空格缩短时长，否则会凭空制造停顿。
     const wordDuration = sourceDuration;
-
-    charWords.push({
-      time: word.time,
-      end: explicitEnd ?? (word.time + wordDuration),
-      duration: wordDuration,
-      topoPos: charWords.length,
-      text: coreText,
-    });
 
     const span = document.createElement('span');
     span.className = 'lyrics-word';
@@ -179,13 +225,21 @@ export function renderTimedLyricWords({
       span.textContent = coreText;
     }
 
+    charWords.push({
+      time: word.time,
+      end: explicitEnd ?? (word.time + wordDuration),
+      duration: wordDuration,
+      topoPos: charWords.length,
+      text: coreText,
+    });
+
     const liftDuration = Math.max(0.15, Math.min(0.8, wordDuration * 1.5));
     span.style.setProperty('--lift-dur', `${liftDuration.toFixed(2)}s`);
 
-    mainDiv.appendChild(span);
+    appendTarget.appendChild(span);
 
     if (trailingMatch) {
-      mainDiv.appendChild(document.createTextNode(trailingMatch[1]));
+      appendTarget.appendChild(document.createTextNode(trailingMatch[1]));
     }
   });
 

@@ -20,6 +20,7 @@ import { listen } from '@tauri-apps/api/event';
 import { updateLyricsPreference } from '../lyrics/preferences.js';
 import { applyWindowMaterial, applyWindowOpacity } from '../ui/theme.js';
 import { pruneLyricsCache } from '../storage/lyrics-cache-db.js';
+import { SHORTCUT_DEFINITIONS, formatShortcutBinding, bindingFromKeyboardEvent } from '../ui/keyboard-shortcuts.js';
 
 function toggleSettingRow(row, show) {
   if (!row) return;
@@ -60,6 +61,7 @@ export const createSettingsPage = ({
   desktopLyrics,
   switchTab,
   reapplyCurrentColor,
+  keyboardShortcuts,
 }) => {
   const renderSettingsTab = () => {
     const listEl = document.getElementById('music-list');
@@ -75,13 +77,12 @@ export const createSettingsPage = ({
     }
 
     const staggerMode = localStorage.getItem('kimo-lyrics-stagger-mode') || 'word';
+    const storedCompatibilityMode = localStorage.getItem('kimo-lyrics-compatibility-mode');
+    const lyricsCompatibilityMode = ['auto', 'char', 'line'].includes(storedCompatibilityMode)
+      ? storedCompatibilityMode
+      : 'auto';
     const fsRaw = localStorage.getItem('kimo-lyrics-font-size');
     const fontSize = (fsRaw !== null && !isNaN(parseFloat(fsRaw))) ? parseFloat(fsRaw) : 22.0;
-    const liftRaw = localStorage.getItem('kimo-lyrics-lift-amplitude');
-    const liftAmp = Math.max(
-      0,
-      Math.min(5, (liftRaw !== null && !isNaN(parseFloat(liftRaw))) ? parseFloat(liftRaw) : 4.0),
-    );
     const lineSpacingRaw = localStorage.getItem('kimo-lyrics-line-spacing');
     const lineSpacing = (lineSpacingRaw !== null && !isNaN(parseFloat(lineSpacingRaw))) ? parseFloat(lineSpacingRaw) : 0.85;
     const rowFollowAnimationVal = localStorage.getItem('kimo-lyrics-row-follow-enabled') !== 'false';
@@ -473,6 +474,19 @@ export const createSettingsPage = ({
 
       <div class="setting-row">
         <div class="setting-info">
+          <div class="setting-label">歌词时间兼容模式</div>
+          <div class="setting-desc">自动使用歌词原始时间；也可强制按逐字或逐行渲染，兼容时间信息不完整的歌词。</div>
+        </div>
+        <div class="setting-radio-group" id="settings-lyrics-compatibility-group" data-active-idx="${lyricsCompatibilityMode === 'char' ? '1' : (lyricsCompatibilityMode === 'line' ? '2' : '0')}">
+          <div class="setting-radio-active-bg"></div>
+          <button class="setting-radio-btn ${lyricsCompatibilityMode === 'auto' ? 'active' : ''}" data-val="auto">自动</button>
+          <button class="setting-radio-btn ${lyricsCompatibilityMode === 'char' ? 'active' : ''}" data-val="char">强制逐字</button>
+          <button class="setting-radio-btn ${lyricsCompatibilityMode === 'line' ? 'active' : ''}" data-val="line">强制逐行</button>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-info">
           <div class="setting-label">歌词逐行跟随动画</div>
           <div class="setting-desc">切换歌词时，下方多行歌词呈现层次跟随滚动动画。</div>
         </div>
@@ -501,17 +515,6 @@ export const createSettingsPage = ({
         <div class="setting-slider-wrapper">
           <input type="range" class="setting-slider" id="settings-slider-line-spacing" min="0" max="2.0" step="0.05" value="${lineSpacing}">
           <div class="setting-value-display" id="settings-line-spacing-val">${lineSpacing.toFixed(2)}</div>
-        </div>
-      </div>
-
-      <div class="setting-row">
-        <div class="setting-info">
-          <div class="setting-label">歌词上抬动画幅度</div>
-          <div class="setting-desc">正在发音的歌词向上抬升的动画高度。</div>
-        </div>
-        <div class="setting-slider-wrapper">
-          <input type="range" class="setting-slider" id="settings-slider-lift" min="0" max="5" step="1" value="${liftAmp}">
-          <div class="setting-value-display" id="settings-lift-val">${liftAmp}px</div>
         </div>
       </div>
 
@@ -781,6 +784,35 @@ export const createSettingsPage = ({
       </div>
     `;
     container.appendChild(desktopLyricCard);
+
+    // Keyboard shortcuts are managed centrally so the settings UI only edits
+    // persisted bindings; it never installs a second global key listener.
+    const shortcutCard = document.createElement('div');
+    shortcutCard.className = 'settings-card shortcut-settings-card';
+    const shortcutBindings = keyboardShortcuts?.getBindings?.() || {};
+    shortcutCard.innerHTML = `
+      <div class="settings-card-title">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h.01M11 9h.01M15 9h.01M7 13h.01M11 13h.01M15 13h.01M7 17h6"/></svg>
+        快捷键
+        <button class="setting-btn shortcut-reset-all" id="settings-shortcuts-reset-all" type="button">恢复默认</button>
+      </div>
+      <div class="shortcut-settings-tip">点击快捷键后直接按下新的组合键。输入框和弹窗内不会触发播放器快捷键。</div>
+      <div class="shortcut-settings-list">
+        ${SHORTCUT_DEFINITIONS.map(item => `
+          <div class="setting-row shortcut-setting-row" data-shortcut-action="${item.id}">
+            <div class="setting-info">
+              <div class="setting-label">${item.label}</div>
+              <div class="setting-desc">${item.description}</div>
+            </div>
+            <div class="shortcut-setting-controls">
+              <button class="shortcut-binding-btn" type="button" data-shortcut-bind="${item.id}" aria-label="设置${item.label}快捷键">${formatShortcutBinding(shortcutBindings[item.id])}</button>
+              <button class="shortcut-clear-btn" type="button" data-shortcut-clear="${item.id}" title="清除快捷键" aria-label="清除${item.label}快捷键">×</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    container.appendChild(shortcutCard);
 
     // ════════════════════════════════════════════════
     // 4. ▶️ 播放与曲库 (Playback & Library)
@@ -1060,6 +1092,81 @@ export const createSettingsPage = ({
     container.appendChild(aboutCard);
     container.appendChild(noResultsEl);
 
+    if (keyboardShortcuts) {
+      let recordingActionId = null;
+
+      const refreshShortcutButtons = () => {
+        const bindings = keyboardShortcuts.getBindings();
+        shortcutCard.querySelectorAll('[data-shortcut-bind]').forEach(button => {
+          button.textContent = formatShortcutBinding(bindings[button.dataset.shortcutBind]);
+          button.classList.remove('is-recording');
+        });
+      };
+
+      const stopRecording = () => {
+        recordingActionId = null;
+        document.body.classList.remove('shortcut-capture-active');
+        window.removeEventListener('keydown', captureShortcut, true);
+        refreshShortcutButtons();
+      };
+
+      const captureShortcut = event => {
+        if (!recordingActionId) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (event.key === 'Escape') {
+          stopRecording();
+          showToast('已取消快捷键设置');
+          return;
+        }
+        if (event.key === 'Backspace' || event.key === 'Delete') {
+          keyboardShortcuts.setBinding(recordingActionId, '');
+          stopRecording();
+          showToast('已清除快捷键');
+          return;
+        }
+        const binding = bindingFromKeyboardEvent(event);
+        if (!binding) return;
+        const result = keyboardShortcuts.setBinding(recordingActionId, binding);
+        if (!result.ok) {
+          showToast(`无法设置：${result.reason}`);
+          return;
+        }
+        stopRecording();
+        showToast('快捷键已保存');
+      };
+
+      shortcutCard.querySelectorAll('[data-shortcut-bind]').forEach(button => {
+        button.addEventListener('click', () => {
+          if (recordingActionId === button.dataset.shortcutBind) {
+            stopRecording();
+            return;
+          }
+          stopRecording();
+          recordingActionId = button.dataset.shortcutBind;
+          document.body.classList.add('shortcut-capture-active');
+          button.textContent = '请按快捷键…';
+          button.classList.add('is-recording');
+          window.addEventListener('keydown', captureShortcut, true);
+        });
+      });
+
+      shortcutCard.querySelectorAll('[data-shortcut-clear]').forEach(button => {
+        button.addEventListener('click', () => {
+          keyboardShortcuts.setBinding(button.dataset.shortcutClear, '');
+          refreshShortcutButtons();
+          showToast('已清除快捷键');
+        });
+      });
+
+      shortcutCard.querySelector('#settings-shortcuts-reset-all')?.addEventListener('click', () => {
+        stopRecording();
+        keyboardShortcuts.resetAll();
+        refreshShortcutButtons();
+        showToast('已恢复默认快捷键');
+      });
+    }
+
     // 🔍 实时搜索过滤逻辑
     const searchInput = searchHeader.querySelector('#settings-search-input');
     const searchClearBtn = searchHeader.querySelector('#settings-search-clear');
@@ -1140,8 +1247,60 @@ export const createSettingsPage = ({
       }
     });
 
-        // 历史更新公告数据
+    // 历史更新公告数据
     const changelogData = [
+      {
+        version: '1.8.5',
+        date: '2026.08.16',
+        type: '歌词体验更新',
+        sections: [
+          { title: '歌词体验', items: [
+            '新增歌词时间兼容模式，可在设置页或歌词页面快捷切换自动、逐字和逐行模式。',
+            '优化歌词自动换行，普通单词会保持完整，不再被拆到两行。',
+            '修复部分歌词播放时的卡拉 OK、高亮和 JavaScript 异常问题。'
+          ] },
+          { title: '使用体验', items: [
+            '优化歌词逐字播放与抬起动画的衔接。',
+            '继续完善桌面歌词和播放器稳定性。'
+          ] }
+        ],
+      },
+      {
+        version: '1.8.4',
+        date: '2026.08.13',
+        type: '稳定性更新',
+        sections: [
+          { title: '歌词播放', items: [
+            '修复 TTML 局域网播放时左右对唱需要播放到对应位置才出现的问题，统一本地与局域网歌词处理链路。',
+            '恢复 TTML 逐字卡拉 OK 渲染，修复切歌、播放头初始化和歌词进度更新时的 JavaScript 异常。',
+            '修复对唱行缺少歌手信息时的数组访问异常，并保留明确的 singer、agent、role 对唱语义。'
+          ] },
+          { title: '界面材质与设置', items: [
+            '统一搜索框、设置卡片和播放器辅助按钮的材质系统，切换液态玻璃、亚克力、高斯和纯色后不再被旧规则还原。',
+            '设置页容器保持透明，设置卡片继承统一浮层材质，减少重复样式覆盖，方便后续维护。',
+            '新增常用操作快捷键，并支持在设置页自行录入、清除和恢复快捷键。'
+          ] },
+          { title: '歌词动效与稳定性', items: [
+            '按 Android 版本的节奏复刻歌词抬起动画，优化逐字拆分、卡拉 OK 高亮和多行对唱布局。',
+            '完善桌面歌词、播放器舞台和 Windows 安装包配置。'
+          ] }
+        ],
+      },
+      {
+        version: '1.8.3',
+        date: '2026.08.11',
+        type: '更新',
+        sections: [
+          { title: '歌词播放', items: [
+            '重构逐字播放头、分行进度与词效状态，改善相邻单元、换行和回退播放时的衔接。',
+            '优化注音歌词的拆分、布局与高亮渲染。'
+          ] },
+          { title: '界面与稳定性', items: [
+            '优化桌面歌词窗口同步、播放器舞台、右键菜单和设置页过渡细节。',
+            '更新 Windows 安装包资源与发布配置。'
+          ] }
+        ],
+      },
       {
         version: '1.8.2',
         date: '2026.08.05',
@@ -1650,6 +1809,27 @@ export const createSettingsPage = ({
           }
         }
         showToast(`已切换为: ${val === 'stagger' ? '字母依次上移' : '单词整体上移'}`);
+      });
+    });
+
+    lyricCard.querySelectorAll('#settings-lyrics-compatibility-group .setting-radio-btn').forEach((btn, idx) => {
+      btn.addEventListener('click', () => {
+        lyricCard.querySelectorAll('#settings-lyrics-compatibility-group .setting-radio-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        lyricCard.querySelector('#settings-lyrics-compatibility-group').setAttribute('data-active-idx', idx.toString());
+        const val = btn.getAttribute('data-val');
+        localStorage.setItem('kimo-lyrics-compatibility-mode', val);
+        if (player?.lyrics) {
+          player.lyrics.lyricsCompatibilityMode = val;
+          player.lyrics.render();
+          if (player.lyrics.isVisible) {
+            player.lyrics.realign();
+            if (player.audio) player.lyrics.syncToTime(player.audio.currentTime);
+          }
+        }
+        const label = val === 'char' ? '强制逐字' : (val === 'line' ? '强制逐行' : '自动');
+        showToast(`歌词兼容模式: ${label}`);
+        document.dispatchEvent(new CustomEvent('lyrics-compatibility-changed', { detail: { mode: val } }));
       });
     });
 
@@ -2701,25 +2881,6 @@ export const createSettingsPage = ({
       document.documentElement.style.setProperty('--lyrics-font-size', `${nextVal}px`);
       if (player && player.lyrics) player.lyrics.resetAlignmentCache();
       localStorage.setItem('kimo-lyrics-font-size', nextVal);
-    }, { passive: false });
-
-    const liftInput = lyricCard.querySelector('#settings-slider-lift');
-    const liftDisplay = lyricCard.querySelector('#settings-lift-val');
-    liftInput.addEventListener('input', (e) => {
-      const val = parseInt(e.target.value);
-      liftDisplay.innerText = `${val}px`;
-    });
-    liftInput.addEventListener('change', (e) => {
-      const val = parseInt(e.target.value);
-      updateLyricsPreference('liftAmplitude', val);
-    });
-    liftInput.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      const delta = e.deltaY < 0 ? 1 : -1;
-      const nextVal = Math.max(0, Math.min(5, parseInt(liftInput.value) + delta));
-      liftInput.value = nextVal;
-      liftDisplay.innerText = `${nextVal}px`;
-      updateLyricsPreference('liftAmplitude', nextVal);
     }, { passive: false });
 
     const spacingInput = lyricCard.querySelector('#settings-slider-line-spacing');

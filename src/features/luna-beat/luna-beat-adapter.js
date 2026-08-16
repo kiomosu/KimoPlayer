@@ -501,8 +501,10 @@ export class LunaBeatAdapter {
         timingFormat: hasValidWords ? 'word-lrc' : 'lrc',
         translation: line.translatedLyric || '',
         romanLyric: line.romanLyric || '',
-        isBG: line.isBG || false,
-        isDuet: line.isDuet || false,
+        role: line.role || line.agent || '',
+        duetLane: line.duetLane,
+        isBackground: Boolean(line.isBackground ?? line.isBG),
+        isDuet: Boolean(line.isDuet),
       };
     });
   }

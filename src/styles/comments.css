@@ -6,7 +6,6 @@
 .app-container.ui-style-acrylic .nav-active-indicator,
 .app-container.ui-style-acrylic .sticky-header,
 .app-container.ui-style-acrylic .context-menu,
-.app-container.ui-style-acrylic .settings-card,
 .app-container.ui-style-acrylic .player-bar,
 .app-container.ui-style-acrylic .playlist-panel {
   backdrop-filter: blur(var(--ui-blur)) saturate(var(--ui-saturate));
@@ -29,7 +28,6 @@
 .app-container.ui-style-gaussian .nav-active-indicator,
 .app-container.ui-style-gaussian .sticky-header,
 .app-container.ui-style-gaussian .context-menu,
-.app-container.ui-style-gaussian .settings-card,
 .app-container.ui-style-gaussian .player-bar,
 .app-container.ui-style-gaussian .playlist-panel {
   backdrop-filter: blur(var(--ui-blur)) saturate(var(--ui-saturate));

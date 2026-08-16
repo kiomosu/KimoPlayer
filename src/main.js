@@ -3,7 +3,7 @@ import { renderAudioQualityBadgesHtml, renderArtistWithBadgesHtml } from './util
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { emit, listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
-import { parseLRC, parseTTML, parseJSONLyrics } from './lyrics.js';
+import { parseLRC, parseELRC, parseTTML, parseJSONLyrics, normalizeLyricsLines } from './lyrics.js';
 import {
   getLyricLineText,
   synthesizePerCharWords,
@@ -27,10 +27,8 @@ import {
 import {
   calculateKaraokePlayheadState,
 } from './lyrics/playhead.js';
-import { alignLyricRows } from './lyrics/row-layout.js';
 import {
   renderClassicCharProgress,
-  renderRowKaraokeProgress,
 } from './lyrics/progress-renderer.js';
 import {
   collectLongGlowIndices,
@@ -117,6 +115,7 @@ import { createDesktopLyricsController } from './ui/desktop-lyrics-controller.js
 import { showToast } from './ui/toast.js';
 import { renderLoadingPlaceholder } from './ui/loading-state.js';
 import { initializeVolumeControls } from './ui/volume-controls.js';
+import { createKeyboardShortcutManager } from './ui/keyboard-shortcuts.js';
 import { applyStoredInterfaceFont, applyStoredLyricsFont, ensureUserFonts, ensureBuiltinFonts, ensureDefaultFont } from './ui/interface-font.js';
 import {
   applyMiniLyricsTranslationSetting,
@@ -240,6 +239,10 @@ class LyricsController {
     this._hasPositionedCurrentLyrics = false;
     // Cache lyric row nodes to avoid repeated DOM tree scans.
     this._cachedAllLines = null;
+    const compatibilityMode = localStorage.getItem('kimo-lyrics-compatibility-mode');
+    this.lyricsCompatibilityMode = ['auto', 'char', 'line'].includes(compatibilityMode)
+      ? compatibilityMode
+      : 'auto';
 
     // Detect manual scroll: clear blur so user can read
     const scrollEl = document.getElementById('lyrics-scroll');
@@ -308,6 +311,10 @@ class LyricsController {
     localStorage.setItem('kimo-lyrics-stagger-mode', this.lyricsStaggerMode);
     this.updateStaggerUI();
     this.render();
+    if (this.isVisible) {
+      this.realign();
+      if (this.player?.audio) this.syncToTime(this.player.audio.currentTime);
+    }
   }
 
   onUserScroll() {
@@ -501,11 +508,16 @@ class LyricsController {
 
       if (result.lyrics_type === 'lrc') {
         this.lines = parseLRC(result.content);
+      } else if (result.lyrics_type === 'elrc' || result.lyrics_type === 'enhanced-lrc') {
+        this.lines = parseELRC(result.content);
       } else if (result.lyrics_type === 'ttml') {
         this.lines = parseTTML(result.content);
       } else if (result.lyrics_type === 'json') {
         this.lines = parseJSONLyrics(result.content);
       }
+      this.lines = normalizeLyricsLines(this.lines, {
+        inferTiming: result.lyrics_type === 'ttml',
+      });
 
       this.lines = filterLyricInformationLines(this.lines, {
         enabled: getLyricsPreferences().filterInfoEnabled,
@@ -632,7 +644,10 @@ class LyricsController {
         return;
       }
 
-      this.lines = filterLyricInformationLines(lunaLines, {
+      // LAN lyrics arrive through the LunaBeat JSON adapter, but use the
+      // same canonical shape and precise-overlap duet inference as local TTML.
+      this.lines = normalizeLyricsLines(lunaLines, { inferTiming: true });
+      this.lines = filterLyricInformationLines(this.lines, {
         enabled: getLyricsPreferences().filterInfoEnabled,
         song: this.player.playlist?.[this.player.currentIndex] || null,
       });
@@ -706,12 +721,17 @@ class LyricsController {
       if (line.isBackground) {
         div.classList.add('is-background-line');
       }
+      if (Number.isInteger(line.duetLane)) {
+        div.classList.add('duet-line', `duet-lane-${Math.max(0, Math.min(1, line.duetLane))}`);
+      }
       if (line.role) {
         const cleanRole = line.role.trim().toLowerCase().replace(/\s+/g, '-');
+        const roleOne = /(?:^|-)(?:l1|v1|voice1|vocal1|singer1|lead1)(?:-|$)/.test(cleanRole);
+        const roleTwo = /(?:^|-)(?:l2|v2|voice2|vocal2|singer2|lead2)(?:-|$)/.test(cleanRole);
         div.classList.add(`role-${cleanRole}`);
-        if (cleanRole.includes('l1') || cleanRole.includes('v1')) div.classList.add('role-l1');
-        if (cleanRole.includes('l2') || cleanRole.includes('v2')) div.classList.add('role-l2');
-        if (cleanRole.includes('both') || cleanRole.includes('v3') || (cleanRole.includes('l1') && cleanRole.includes('l2')) || (cleanRole.includes('v1') && cleanRole.includes('v2'))) {
+        if (roleOne) div.classList.add('role-l1');
+        if (roleTwo) div.classList.add('role-l2');
+        if (cleanRole.includes('both') || cleanRole.includes('v3') || (roleOne && roleTwo)) {
           div.classList.add('role-both');
         }
       }
@@ -732,16 +752,38 @@ class LyricsController {
         }
       } else {
         mainDiv.className = 'lyrics-main';
+        const nextLine = this.lines[idx + 1];
+        let renderLine = line;
+
+        // Compatibility mode can deliberately collapse a provider's detailed
+        // timing to one line unit, or force character timing for line-only
+        // lyrics. Keep this render-only so the parsed source data is intact.
+        if (this.lyricsCompatibilityMode === 'line') {
+          const lineEnd = Number.isFinite(line.end) && line.end > line.time
+            ? line.end
+            : (nextLine && nextLine.time > line.time ? nextLine.time : line.time + 3);
+          renderLine = {
+            ...line,
+            words: [{
+              time: line.time,
+              end: lineEnd,
+              duration: lineEnd - line.time,
+              text: line.text || '',
+            }],
+          };
+        }
+
         // Per-character karaoke fallback: synthesize per-char timing from line-level timestamps
-        if (!line.words || line.words.length === 0) {
+        if (this.lyricsCompatibilityMode !== 'line' && (!line.words || line.words.length === 0)) {
           line.words = this._synthesizePerCharWords(line, idx);
         }
-        if (line.words && line.words.length >= 1) {
+        if (renderLine.words && renderLine.words.length >= 1) {
           line.charWords = renderTimedLyricWords({
             mainDiv,
-            line,
-            nextLine: this.lines[idx + 1],
+            line: renderLine,
+            nextLine,
             staggerMode: this.lyricsStaggerMode,
+            compatibilityMode: this.lyricsCompatibilityMode,
           });
         } else {
           mainDiv.textContent = line.text;
@@ -985,11 +1027,7 @@ class LyricsController {
     const preferences = getLyricsPreferences();
     const timeOffset = preferences.timeOffset;
     const currentTime = rawCurrentTime + timeOffset;
-    const liftAmp = preferences.liftAmplitude;
 
-    const dt = this._prevPhysicsNow !== undefined
-      ? Math.max(0.001, Math.min(0.08, (frameNow - this._prevPhysicsNow) / 1000))
-      : 0.016;
     this._prevPhysicsNow = frameNow;
 
     // Seeking changes lyric time discontinuously; animation physics should not
@@ -1115,7 +1153,7 @@ class LyricsController {
         this.updateBarLyrics(miniBarIndex);
         this.miniBarIndex = miniBarIndex;
       }
-      if (miniBarIndex >= 0 && this.lines[miniBarIndex] && this.lines[miniBarIndex].charWords && this.lines[miniBarIndex].charWords.length > 0) {
+      if (miniBarIndex >= 0 && this.lines[miniBarIndex]) {
         const rawLineData = this.lines[miniBarIndex];
         let lineData = rawLineData;
         let isInterlude = !!(rawLineData?.isInterlude || rawLineData?.text === '...');
@@ -1130,6 +1168,9 @@ class LyricsController {
               break;
             }
           }
+        }
+        if (!Array.isArray(lineData.charWords) || lineData.charWords.length === 0) {
+          return;
         }
         this.syncBarSpans(null, lineData.charWords, currentTime);
 
@@ -1437,10 +1478,6 @@ class LyricsController {
 
         if (activeIndices.includes(idx)) {
           el.classList.add('active');
-          if (activeIndices.length > 1 && !this.lines[idx].isBackground) {
-            const laneIndex = Math.max(0, Math.min(3, this.lines[idx].laneIndex || 0));
-            el.classList.add('concurrent-active', `concurrent-lane-${laneIndex}`);
-          }
         } else if (idx < minActiveIdx && idx < effectiveActive) {
           el.classList.add('past');
         }
@@ -1454,7 +1491,6 @@ class LyricsController {
           currentTime,
           minActiveIndex: minActiveIdx,
           scrollIndex,
-          liftAmplitude: liftAmp,
           lines: this.lines,
         });
       });
@@ -1477,17 +1513,12 @@ class LyricsController {
           }
           const wordSpans = domLine._wordSpans;
           
-          if (!domLine._wordsList) {
-            domLine._wordsList = Array.from(domLine.querySelector('.lyrics-main')?.querySelectorAll('.lyrics-word') || []);
-          }
-          const words = domLine._wordsList;
+          // Keep the main lyrics on the same per-character renderer as the
+          // desktop lyrics. The row-aligned renderer can be used only after
+          // its geometry and CSS contract are proven compatible with every
+          // ruby/TTML layout; it must not replace the working karaoke path.
           
-          alignLyricRows(domLine, words, { force: this._layoutDirty });
-          
-          const {
-            charC,
-            totalChars,
-          } = calculateKaraokePlayheadState(lineData.charWords, currentTime);
+          const { charC, totalChars } = calculateKaraokePlayheadState(lineData.charWords, currentTime);
 
           if (idx === this.activeIndex) {
             const rawActiveData = lineData;
@@ -1526,12 +1557,8 @@ class LyricsController {
             return;
           }
 
-          // long-glow 类在歌词渲染时确定、播放中不变：缓存到行元素，避免每帧遍历
-          const longIndices = domLine._longIndices
-            || (domLine._longIndices = collectLongGlowIndices(wordSpans));
+          const longIndices = collectLongGlowIndices(wordSpans);
 
-          // 统一采用与桌面歌词同源的高效逐字（--char-fill）线性卡拉OK渲染逻辑，
-          // 彻底解决 DOM 测量像素与换行偏差造成的走字跳变/卡顿问题
           renderClassicCharProgress({
             wordSpans,
             charWords: lineData.charWords,
@@ -1540,23 +1567,13 @@ class LyricsController {
             totalChars,
           });
 
-          // 深度模糊行（filter: blur 生效中）冻结字运动效果：
-          // blur 层内部若每帧有 transform 变化会强制整行重算模糊（昂贵），
-          // 冻结后模糊层静止，只保留卡拉OK填充，消除每帧重绘
-          const isDepthBlurred = domLine.classList.contains('depth-1')
-            || domLine.classList.contains('depth-2')
-            || domLine.classList.contains('depth-3');
-          if (!isDepthBlurred) {
-            renderWordMotionEffects({
-              wordSpans,
-              charWords: lineData.charWords,
-              charC,
-              liftAmplitude: liftAmp,
-              isBackground: lineData.isBackground,
-              deltaTime: dt,
-              longIndices,
-            });
-          }
+          renderWordMotionEffects({
+            wordSpans,
+            charWords: lineData.charWords,
+            charC,
+            currentTime,
+            longIndices,
+          });
 
         }
       }
@@ -1664,12 +1681,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // 启动页关闭逻辑已移至默认字体下载处（splash 等待字体初始化完成后关闭）
-
-  // Restore default lyric lift amplitude to 4.0 on version 1.2.2 launch (word lift animation)
-  if (localStorage.getItem('kimo-lyrics-lift-amplitude-migrated-122') !== 'true') {
-    updateLyricsPreference('liftAmplitude', 4);
-    localStorage.setItem('kimo-lyrics-lift-amplitude-migrated-122', 'true');
-  }
 
   // Restore the saved theme, using light mode on first launch.
   let savedTheme = localStorage.getItem('kimo-theme');
@@ -1847,6 +1858,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   initializeProgressScrubbing(player);
   initializeVolumeControls(player);
+
+  const keyboardShortcuts = createKeyboardShortcutManager({
+    player,
+    switchTab: tabName => switchTab(tabName),
+    showToast,
+  });
 
   // Theme
   document.getElementById('theme-toggle')?.addEventListener('click', cycleTheme);
@@ -2223,6 +2240,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     desktopLyrics,
     switchTab: tabName => switchTab(tabName),
     reapplyCurrentColor,
+    keyboardShortcuts,
   });
 
   const renderRecentPlaysTab = createRecentPlaysRenderer({
@@ -2444,6 +2462,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     saveLyricsCache: saveLyricsToDB,
     invoke,
     parseLRC,
+    parseELRC,
     parseTTML,
     parseJSONLyrics,
     switchTab,
@@ -2738,7 +2757,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         ttml: 'TTML',
         json: '逐字 JSON',
         'word-lrc': '逐字 LRC',
-        'enhanced-lrc': '逐字 LRC',
+        'enhanced-lrc': 'ELRC 逐字歌词',
         lrc: 'LRC',
       };
       formatBadge.textContent = formatLabels[currentLyricsType] || currentLyricsType.toUpperCase();

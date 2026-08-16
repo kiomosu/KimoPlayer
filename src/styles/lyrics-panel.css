@@ -508,6 +508,42 @@
   gap: 7px;
 }
 
+.lyrics-compatibility-popover {
+  width: 178px;
+  gap: 8px;
+}
+
+.lyrics-compatibility-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.lyrics-compatibility-option {
+  min-height: 28px;
+  padding: 4px 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.lyrics-compatibility-option:hover,
+.lyrics-compatibility-option.is-active {
+  border-color: var(--dynamic-color, #70b7ff);
+  background: color-mix(in srgb, var(--dynamic-color, #70b7ff) 20%, transparent);
+  color: var(--text-primary);
+}
+
+.app-container.theme-light .lyrics-compatibility-option {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.04);
+}
+
 .lyrics-control-item:hover .slider-popover {
   opacity: 1;
   pointer-events: auto;
