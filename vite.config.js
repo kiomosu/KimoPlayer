@@ -3,6 +3,9 @@ import fs from 'node:fs';
 import pkg from './package.json' with { type: 'json' };
 
 export default defineConfig({
+  // Tauri production uses a custom asset protocol; relative URLs keep CSS,
+  // JS and images resolvable both in dev and inside the installed bundle.
+  base: './',
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },

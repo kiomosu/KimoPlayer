@@ -26,7 +26,7 @@ Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: 
 Name: "startup"; Description: "开机自动启动 KimoPlayer"; GroupDescription: "附加选项:"; Flags: unchecked
 
 [Files]
-Source: "..\dist-exe\KimoPlayer-{#MyAppVersion}-ultra.exe"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion
+Source: "..\dist-exe\KimoPlayer-{#MyAppVersion}-safe.exe"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
