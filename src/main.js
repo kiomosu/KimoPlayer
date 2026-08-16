@@ -1753,7 +1753,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 首帧渲染后：若无需下载（字体已安装），按时关闭启动页；
   // 若正在下载默认字体，启动页保持展示进度，完成后短暂提示再关闭
   setTimeout(async () => {
-    const downloaded = await defaultFontDownload;
+    // 首次启动的字体下载不能阻塞播放器初始化。网络不可用或请求卡住
+    // 时先进入主界面，字体下载 Promise 仍会在后台完成并缓存结果。
+    const downloaded = await Promise.race([
+      defaultFontDownload,
+      new Promise(resolve => setTimeout(() => resolve(false), 12000)),
+    ]);
     if (downloaded) {
       if (splashStatusText) splashStatusText.textContent = '默认字体下载完成，正在启动…';
       setTimeout(hideSplash, 500);
