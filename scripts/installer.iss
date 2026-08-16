@@ -20,6 +20,11 @@ Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 ChangesAssociations=yes
+WizardImageFile=..\assets\installer-sidebar.bmp
+WizardSmallImageFile=..\src-tauri\icons\128x128.png
+
+[Languages]
+Name: "chinesesimp"; MessagesFile: "ChineseSimplified.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "附加选项:"; Flags: checkedonce
