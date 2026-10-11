@@ -21,6 +21,47 @@ dist-ssr
 # Binary tools
 upx.exe
 
+# Inno Setup installed locally in the repository root
+/Compil32.exe
+/ISCC.exe
+/ISCmplr.dll*
+/ISPP.dll*
+/ISPPBuiltins.iss
+/ISSigTool.exe
+/Default.isl
+/ISetup*.chm
+/Setup.e32*
+/SetupCustomStyle.e32*
+/SetupLdr.e32*
+/SetupLdr.e64*
+/SetupClassicIcon.ico
+/WizClassic*.bmp
+/is7z*.dll*
+/isbunzip.dll*
+/isbzip.dll*
+/islzma.dll*
+/islzma32.exe*
+/islzma64.exe*
+/isscint.dll*
+/isunzlib.dll*
+/iszlib.dll*
+/iscc-build-temp.exe
+/isfaq.url
+/license.txt
+/whatsnew.htm
+/unins[0-9][0-9][0-9].*
+
+# Local installer smoke-test output and temporary screenshots
+/package-smoke-*/
+/局部截取_*.png
+
+# Local assistant state and temporary reference analysis
+/.reasonix/
+/reasonix.toml
+/temp-icon-test/
+/_lb_*
+/_dig*.mjs
+
 # One-off fix scripts
 fix_*.cjs
 
